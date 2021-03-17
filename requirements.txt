@@ -1,0 +1,7 @@
+Flask
+python-dotenv
+pymongo
+dnspython
+amqp==2.5.2
+celery==4.4.1
+kombu==4.6.8
