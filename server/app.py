@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, has_request_context
 import pymongo
 from bson.objectid import ObjectId
 import settings
@@ -23,47 +23,68 @@ celery_app.conf.update(app.config)
 
 print('name', app.name)
 
+def update_db(id, state, unset=False):
+    tasks_by_status.update_one({'_id': tasks_by_status_id}, {"${}".format("unset" if unset else "set"): {"{}.{}".format(state, id): True}}, upsert=False)
+
+@app.route('/dbquery', methods=['POST'])
+def dbquery():
+    data = request.json
+    # print('dbquery',data)
+    update_db(**data)
+    return {
+        'this': 'works'
+    }
+
+def send_request(id, state, unset):
+    data = {
+        'id': str(id),
+        'state': state,
+        'unset': unset
+    }
+    # print('send_req',data)
+    res = requests.post('http://127.0.0.1:5000/dbquery', json=data,
+    headers={
+        'Content-Type': 'application/json'
+    })
+    print(res.text)
+
 # decorator for celery
 @celery_app.task
-def executeTask(data, id, path):
-    from os import getcwd
-    with open('{}/args.txt'.format(path), 'w') as f:
-        f.write('{} {} {}'.format(data, id, path))
+def executeTask(data, id):
+    # with open('file.txt', 'w') as f:
+    #     f.write(str(data))
     try:
         # SCHEDULED ----> RUNNING
         
         # tasks_by_status.update_one({'_id': tasks_by_status_id}, {"$unset": {"SCHEDULED.{}".format(data['_id']): True}}, upsert=False)
         # tasks_by_status.update_one({'_id': tasks_by_status_id}, {"$set": {"RUNNING.{}".format(data['_id']): True}}, upsert=False)
+        send_request(id, "SCHEDULED", unset=True)
+        send_request(id, "RUNNING", unset=False)
         res = requests.request(method=data['requestData']['method'], 
             url=data['taskUrl'], 
             data=data['requestData']['body'], 
             headers=data['requestData']['headers'])
-        import os
 
-        with open('{}/file.txt'.format(path), 'w') as f:
-            f.write('{} sdssdsd'.format(res.json()))
         # tasks_by_status.update_one({'_id': tasks_by_status_id}, {"$unset": {"RUNNING.{}".format(id): True}}, upsert=False)
+        send_request(id, "RUNNING", unset=True)
         if res.ok:
             # update db with task status = completed
             # RUNNING -> COMPLETED    
             # tasks_by_status.update_one({'_id': tasks_by_status_id}, {"$set": {"COMPLETED.{}".format(id): True}}, upsert=False)
-
-            # @celery_app.task
-            # def sleep_asynchronously(url):
-            #     return (requests.get(url).status_code)
-
-            # sleep_asynchronously.apply_async(args= [], countdown = 5)
+            send_request(id, "COMPLETED", unset=False)
             pass
 
         else:
             # error, set task status as failure
             # RUNNING -> FAILURE
             # tasks_by_status.update_one({'_id': tasks_by_status_id}, {"$set": {"FAILED.{}".format(id): True}}, upsert=False)
+            send_request(id, "FAILED", unset=False)
             pass
 
     except:
         # error, set task status as failure
         # tasks_by_status.update_one({'_id': tasks_by_status_id}, {"$set": {"FAILED.{}".format(id): True}}, upsert=False)
+        send_request(id, "FAILED", unset=False)
         pass
 
 
@@ -74,26 +95,8 @@ def home():
         'this': 'works'
     }
 
-@app.route('/tpgetalltasks')
-def tpgetall():
-    cursor = tasks.find({})
-    # print('----------------',list(cursor))
-    data = list(cursor)
-    # print(data[0]['_id'])
-    for i in range(len(data)):
-        data[i]['_id'] = str(data[i]['_id'])
-    # print(data)
-    # for doc in cursor:
-    #     print(doc)
-    return jsonify(data)
-
-@app.route('/tp')
+@app.route('/testtask')
 def tp():
-    # id = ObjectId(request.args.get('id'))
-    # # SCHEDULED --> COMPLETED
-    # tasks_by_status.update_one({'_id': tasks_by_status_id}, {"$unset": {"SCHEDULED.{}".format(id): True}}, upsert=False)
-    # tasks_by_status.update_one({'_id': tasks_by_status_id}, {"$set": {"COMPLETED.{}".format(id): True}}, upsert=False)
-    # return jsonify({'this': 'works'})
     print('request at timestamp',datetime.now())
     return {'this': 'works'}
 
@@ -102,7 +105,7 @@ def tp():
 
 @app.route('/schedule', methods=['POST'])
 def schedule():
-    print(request.json)
+    # print(request.json)
     # return jsonify({
         # 'this': 'works'
     # })
@@ -116,8 +119,9 @@ def schedule():
     
     # print('data_to_insert', data_to_insert)
     data_to_insert.pop('_id')
-    import os
-    result = executeTask.apply_async(args=(data_to_insert, id, os.getcwd()), countdown= data_to_insert['delay'])
+    print(data_to_insert, id, type(id))
+    with app.app_context():
+        result = executeTask.apply_async(args=(data_to_insert, id), countdown= data_to_insert['delay'])
     # print(result, dir(result), type(result))
     # from time import sleep
     # for i in range(10):
