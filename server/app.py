@@ -83,7 +83,6 @@ def executeTask(data, id):
         pass
 
 
-
 @app.route('/')
 def home():
     return {
@@ -112,11 +111,11 @@ def schedule():
     row = tasks_by_status.update_one({'_id': tasks_by_status_id}, {"$set": {"SCHEDULED.{}".format(id): True}}, upsert=False)
     data_to_insert.pop('_id')
     print(data_to_insert, id, type(id))
-    with app.app_context():
-        result = executeTask.apply_async(args=(data_to_insert, id), countdown= data_to_insert['delay'])
-        print(str(result))
-        task_celery_map[str(id)] = str(result)
-        print(list(task_celery_map.items()))
+    # with app.app_context():
+    result = executeTask.apply_async(args=(data_to_insert, id), countdown= data_to_insert['delay'])
+    print(str(result))
+    task_celery_map[str(id)] = str(result)
+    print(list(task_celery_map.items()))
     return jsonify({'id': id})
 
 def cancel_task(task_id):
@@ -148,6 +147,7 @@ def modify(task_id):
         # print(list(task_celery_map.items()))
         update_task_status(task_id, row['taskStatus'], unset=True)
         update_task_status(task_id, "SCHEDULED")
+        tasks.update_one({'_id': ObjectId(task_id)}, {"$set": {"delay": data['delay']}})
     return '', 200
 
 
@@ -161,14 +161,22 @@ def check_status(task_id):
         'status': status
     }
 
-@app.route('/retrieveTaskData/<task_id>')
+# @app.route('/retrieveTaskData/<task_id>')
 def get_task_data(task_id):
     cursor = tasks.find({ '_id': ObjectId(task_id)})
     data = list(cursor)[0]
     data['_id'] = str(data['_id'])
-    return {
-        'data': data
-    }
+    return data
+
+@app.route('/retrieveAllTasks/', methods = ['GET'])
+def get_tasks():
+    dictionary = tasks_by_status.find({
+        '_id': ObjectId(tasks_by_status_id)
+    })[0]
+    dictionary.pop('_id')
+    for i in dictionary:
+        dictionary[i] = list(map(lambda x: get_task_data(str(x)), dictionary[i].keys()))
+    return dictionary
 
 @app.route('/retrieveAllTasks/<status>', methods = ['GET'])
 def get_all_tasks(status):
@@ -177,7 +185,7 @@ def get_all_tasks(status):
     },{
         status: 1
     })[0][status]
-    task_ids = list(map(lambda x: str(x), dictionary.keys()))
+    task_ids = list(map(lambda x: get_task_data(str(x)), dictionary.keys()))
     return {
         'status': status,
         'data': task_ids
