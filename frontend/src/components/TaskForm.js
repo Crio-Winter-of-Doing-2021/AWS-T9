@@ -22,7 +22,7 @@ const TaskForm = (props) => {
                 }
             }
             await taskService.scheduleTask(taskToSchedule)
-            props.callback(!props.clickFlag)
+            props.callback()
         }
         catch(error) {
             alert(error)
