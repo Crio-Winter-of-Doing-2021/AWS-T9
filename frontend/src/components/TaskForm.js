@@ -22,6 +22,7 @@ const TaskForm = (props) => {
                 }
             }
             await taskService.scheduleTask(taskToSchedule)
+            alert('Task scheduled successfully!')
             props.callback()
         }
         catch(error) {
@@ -52,11 +53,11 @@ const TaskForm = (props) => {
                     </div>
                 </div>
                 <div className="form-group col-4">
-                    <label>Enter headers in JSON format:</label>
+                    <label>Enter headers in JSON format or null for no headers:</label>
                     <textarea className="form-control" onChange = {({target}) => setHeaders(target.value)} rows="3"/>
                 </div>
                 <div className="form-group col-4">
-                    <label>Enter payload in JSON format</label>
+                    <label>Enter payload or enter null for no payload</label>
                     <textarea className="form-control" onChange = {({target}) => setPayload(target.value)} rows="3"/>
                 </div>
                 <button className="btn btn-primary" type = 'submit'>Schedule</button>

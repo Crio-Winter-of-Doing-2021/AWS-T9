@@ -90,12 +90,12 @@ def home():
     }
 
 @app.route('/testtask', methods=['GET', 'POST'])
-def tp():
+def testtask():
     # print('request data', request.data)
     print('request at timestamp',datetime.now())
     from time import sleep
     from random import randint
-    sleep(randint(1,6))
+    sleep(randint(4,7))
     return {'this': 'works'}
 
 
@@ -164,7 +164,10 @@ def check_status(task_id):
 # @app.route('/retrieveTaskData/<task_id>')
 def get_task_data(task_id):
     cursor = tasks.find({ '_id': ObjectId(task_id)})
-    data = list(cursor)[0]
+    data = list(cursor)
+    if data == []:
+        return data
+    data = data[0]
     data['_id'] = str(data['_id'])
     return data
 

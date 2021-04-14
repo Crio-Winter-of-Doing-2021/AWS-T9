@@ -10,7 +10,7 @@ const Table = (props) => {
     //     return row
     // })
     // console.log(tasks);
-
+    let data = props.data.filter((obj) => !Array.isArray(obj))
     let cancelTask = (taskId) => {
         axios.put(`${baseUrl}/cancel/${taskId}`)
     }
@@ -29,14 +29,14 @@ const Table = (props) => {
                 <th scope="col">TaskId</th>
                 <th scope="col">URL</th>
                 <th scope="col">Timestamp</th>
-                <th scope="col">Delay</th>
+                <th scope="col">Delay (in sec)</th>
                 <th scope="col">RequestData</th>
                 <th scope="col">Status</th>
                 <th scope="col"></th>
             </tr>
         </thead>
         <tbody>
-            {props.data.sort((a,b) => new Date(b['timestamp']) - new Date(a['timestamp'])).map((row) => <tr>
+            {data.sort((a,b) => new Date(b['timestamp']) - new Date(a['timestamp'])).map((row) => <tr>
                     <td>{row['_id']}</td>
                     <td>{row['taskUrl']}</td>
                     <td>{new Date(row['timestamp']).toString()}</td>

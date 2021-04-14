@@ -33,13 +33,13 @@ const App = () => {
     const updateData = () => {
         taskService.getTasksByStatus()
         .then((data) => {
-            console.log('data is here', data);
+            // console.log('data is here', data);
             setTasks(data)
         })
     }
 
     useEffect(updateData, [clickFlag])
-    // useInterval(updateData, 2000)
+    useInterval(updateData, 1000)
 
     const displayTasks = (event) => {
         event.preventDefault()
